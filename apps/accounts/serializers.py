@@ -39,11 +39,12 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'organization', 'name', 'username', 'password', 'phone',
+        fields = ['id', 'organization', 'name', 'username', 'password', 'plain_password', 'phone',
                   'role', 'telegram_chat_id', 'avatar', 'status', 'theme', 'sidebar_collapsed',
                   'group', 'group_name', 'group_id', 'created_at', 'updated_at']
         extra_kwargs = {
             'password': {'write_only': True},
+            'plain_password': {'read_only': True},
             'id': {'required': False},
         }
 
@@ -75,15 +76,19 @@ class UserSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data['id'] = f"usr_{int(datetime.now().timestamp())}_{self.context.get('request').user.id}"
+        raw_password = validated_data.get('password')
         instance = User(**validated_data)
-        if 'password' in validated_data:
-            instance.set_password(validated_data['password'])
+        if raw_password:
+            instance.set_password(raw_password)
+            instance.plain_password = raw_password
         instance.save()
         return instance
 
     def update(self, instance, validated_data):
         if 'password' in validated_data:
-            instance.set_password(validated_data['password'])
+            raw_password = validated_data['password']
+            instance.set_password(raw_password)
+            instance.plain_password = raw_password
             del validated_data['password']
         for attr, value in validated_data.items():
             setattr(instance, attr, value)

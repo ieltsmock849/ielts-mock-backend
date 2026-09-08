@@ -7,8 +7,22 @@ from apps.accounts.permissions import IsAdmin, IsTeacher, IsOrganizationMember
 from apps.accounts.serializers import UserSerializer
 
 
+class StudentSerializer(UserSerializer):
+    """
+    UserSerializer 'role' maydonini majburiy (required) deb hisoblaydi,
+    chunki bu maydon Django modelida blank=True/default'siz e'lon qilingan
+    (UserViewSet va StaffSerializer buni ataylab talab qiladi — mijoz
+    ANIQ rol yuborishi shart). Lekin StudentViewSet.perform_create() rolni
+    doim o'zi 'student' qilib belgilaydi va frontend uni umuman yubormaydi
+    — shu nomuvofiqlik "role: Bu maydon talab qilinadi" 400 xatosiga olib
+    kelardi. Shu sabab faqat shu yerda 'role' ixtiyoriy qilib qo'yiladi.
+    """
+    class Meta(UserSerializer.Meta):
+        extra_kwargs = {**UserSerializer.Meta.extra_kwargs, 'role': {'required': False}}
+
+
 class StudentViewSet(viewsets.ModelViewSet):
-    serializer_class = UserSerializer
+    serializer_class = StudentSerializer
     permission_classes = [IsAuthenticated, IsOrganizationMember]
     search_fields = ['name', 'username']
     filterset_fields = ['group', 'status']
@@ -40,16 +54,16 @@ class StudentViewSet(viewsets.ModelViewSet):
             organization_id=self.request.user.organization_id
         )
 
-    @action(detail=True, methods=['get'])
-    def password(self, request, pk=None):
+    @action(detail=True, methods=['get'], url_path='password')
+    def get_password(self, request, pk=None):
         student = self.get_object()
         if request.user.role not in ['ceo', 'admin', 'support'] and request.user.id != student.id:
             return Response({'success': False, 'message': 'Permission denied'},
                             status=status.HTTP_403_FORBIDDEN)
         return Response({'success': True, 'data': {'password': student.password}})
 
-    @action(detail=True, methods=['put'])
-    def password(self, request, pk=None):
+    @action(detail=True, methods=['put'], url_path='password')
+    def set_password(self, request, pk=None):
         student = self.get_object()
         if request.user.role not in ['ceo', 'admin', 'support']:
             return Response({'success': False, 'message': 'Permission denied'},

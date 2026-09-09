@@ -38,7 +38,7 @@ class IsOwnerOrStaff(BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.user.role == 'support':
             return True
-        if request.user.role in ['ceo', 'admin']:
+        if request.user.role in ['ceo', 'admin', 'student']:
             if hasattr(obj, 'organization'):
                 return obj.organization_id == request.user.organization_id
             if hasattr(obj, 'exam') and hasattr(obj.exam, 'organization'):

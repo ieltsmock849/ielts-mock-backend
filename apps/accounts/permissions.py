@@ -53,7 +53,7 @@ class IsOrganizationMember(BasePermission):
     def has_permission(self, request, view):
         if request.user.role == 'support':
             return True
-        if request.user.role in ['ceo', 'admin']:
+        if request.user.role in ['ceo', 'admin', 'student']:
             return request.user.organization_id is not None
         return False
 

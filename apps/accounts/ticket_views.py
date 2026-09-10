@@ -13,9 +13,16 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
     search_fields = ['message', 'user_name']
 
     def get_queryset(self):
-        if self.request.user.role == 'support':
+        user = self.request.user
+        if user.role == 'support':
             return SupportTicket.objects.all()
-        return SupportTicket.objects.filter(user=self.request.user)
+        if user.role == 'ceo':
+            # CEO uchun `user` aslida Organization obyekti bo'lgani sabab
+            # SupportTicket.user (User FK) bilan solishtirib bo'lmaydi —
+            # perform_create'da CEO ticketlari user=None, organization=org
+            # qilib saqlanadi, shu sabab shu yerda ham shunga mos filtrlaymiz.
+            return SupportTicket.objects.filter(organization=user, user__isnull=True)
+        return SupportTicket.objects.filter(user=user)
 
     def perform_create(self, serializer):
         # CEO login qilganda `user` aslida Organization obyekti bo'ladi va uning

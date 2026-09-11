@@ -1,2 +1,2 @@
 release: python manage.py migrate --noinput && python manage.py collectstatic --noinput
-web: python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 3 --log-file -
+web: python manage.py migrate --noinput && daphne -b 0.0.0.0 -p $PORT config.asgi:application

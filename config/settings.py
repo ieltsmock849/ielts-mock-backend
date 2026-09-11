@@ -27,6 +27,13 @@ if RAILWAY_PUBLIC_DOMAIN and RAILWAY_PUBLIC_DOMAIN not in ALLOWED_HOSTS:
 
 # Application definition
 INSTALLED_APPS = [
+    # 'daphne' ENG BIRINCHI bo'lishi shart (django.contrib.staticfiles'dan ham
+    # oldin) — shundagina `runserver` ASGI (WebSocket qo'llab-quvvatlaydigan)
+    # serverdan foydalanadi. Aks holda Django system check xato beradi
+    # (daphne.E001).
+    'daphne',
+    'channels',
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -79,6 +86,29 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
+
+# Real-time (WebSocket) qatlami — xabar/mock exam/vazifa/notification'lar
+# refreshsiz yetkazilishi uchun (izoh: apps/notifications/consumers.py).
+# Productionda (Railway va h.k.) bir nechta worker/dyno bo'lishi mumkinligi
+# sabab InMemoryChannelLayer YARAMAYDI (worker'lar orasida xabar yetmaydi) —
+# shu sabab Redis asosidagi qatlam ishlatiladi. REDIS_URL berilmasa (masalan
+# lokal dev'da Redis o'rnatilmagan bo'lsa), InMemoryChannelLayer'ga tushamiz —
+# bitta process/dev serverda real-time baribir ishlayveradi.
+REDIS_URL = env('REDIS_URL', default=None)
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {'hosts': [REDIS_URL]},
+        },
+    }
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        },
+    }
 
 # Database
 # Railway (va boshqa PaaS)lar bitta DATABASE_URL beradi. Shu mavjud bo'lsa

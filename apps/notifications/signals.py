@@ -4,6 +4,7 @@ from django.conf import settings
 from apps.results.models import ExamResult
 from apps.accounts.models import SupportTicket
 from .telegram import send_writing_notification, send_support_ticket_notification
+from .realtime import push_to_support
 
 
 @receiver(post_save, sender=ExamResult)
@@ -41,3 +42,13 @@ def notify_support_ticket(sender, instance, created, **kwargs):
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f"Support ticket notification failed: {e}")
+
+    try:
+        # Lazy import — aylanma import (apps.accounts.serializers <-> bu fayl)
+        # bo'lmasligi uchun signal ishga tushganda import qilinadi.
+        from apps.accounts.serializers import SupportTicketSerializer
+        push_to_support('new_support_ticket', SupportTicketSerializer(instance).data)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Support ticket realtime push failed: {e}")

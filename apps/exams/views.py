@@ -8,6 +8,7 @@ from .serializers import GroupSerializer, ExamSerializer, AssignmentSerializer, 
 from apps.accounts.permissions import IsSupport, IsAdmin, IsManager, IsTeacher, IsStudent, IsOrganizationMember
 from rest_framework.permissions import IsAuthenticated
 from .scoring import is_answer_correct, has_answer
+from apps.notifications.realtime import push_to_class_group
 import uuid
 
 
@@ -54,11 +55,24 @@ class ExamViewSet(viewsets.ModelViewSet):
         if assigned_groups:
             exam.assigned_groups.set(assigned_groups)
 
+        # Real-time: mock exam faol ('on') bo'lib yaratilsa, tayinlangan
+        # guruh(lar)dagi barcha Student'larga darhol yetkaziladi.
+        if exam.status == 'on':
+            data = ExamSerializer(exam).data
+            for group_id in assigned_groups:
+                push_to_class_group(group_id, 'new_exam', data)
+
     @action(detail=True, methods=['patch'])
     def toggle(self, request, pk=None):
         exam = self.get_object()
         exam.status = 'off' if exam.status == 'on' else 'on'
         exam.save()
+
+        if exam.status == 'on':
+            data = ExamSerializer(exam).data
+            for group in exam.assigned_groups.all():
+                push_to_class_group(group.id, 'new_exam', data)
+
         return Response({'success': True, 'status': exam.status})
 
     @action(detail=True, methods=['patch'])
@@ -68,6 +82,13 @@ class ExamViewSet(viewsets.ModelViewSet):
         exam.reopened_at = timezone.now()
         exam.notif_seen_by.clear()
         exam.save()
+
+        # Real-time: qayta ochilgan exam ham "yangi" sifatida darhol
+        # ko'rinsin (notif_seen_by tozalanganiga mos).
+        data = ExamSerializer(exam).data
+        for group in exam.assigned_groups.all():
+            push_to_class_group(group.id, 'new_exam', data)
+
         return Response({'success': True, 'message': 'Exam reopened'})
 
     @action(detail=True, methods=['get'])

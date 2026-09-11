@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from apps.accounts.models import Organization, User
 from .models import Message
 from .serializers import MessageSerializer
+from .realtime import push_to_account
 
 # CEO ostidagi "xodim" rollari (Employee) — Support/CEO/Student bundan tashqari.
 # Yangi hiyerarxiyada bu FAQAT "admin" ('teacher'/'manager'/'org_support'
@@ -179,6 +180,12 @@ class MessageViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
                              status=status.HTTP_403_FORBIDDEN)
 
         serializer = MessageSerializer(created, many=True)
+
+        # Real-time: har bir qabul qiluvchiga ALOHIDA (o'z Message qatori
+        # bilan) darhol yetkazamiz — refreshsiz ko'rinsin.
+        for msg, data in zip(created, serializer.data):
+            push_to_account(msg.recipient_role, msg.recipient_id, 'new_message', data)
+
         return Response({'success': True, 'data': serializer.data}, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post', 'patch'])
@@ -208,4 +215,10 @@ class MessageViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         msg.status = status_val
         msg.responded_at = timezone.now()
         msg.save()
-        return Response({'success': True, 'data': MessageSerializer(msg).data})
+
+        data = MessageSerializer(msg).data
+        # Real-time: yuboruvchi ham status ('read'/'ignored') o'zgarganini
+        # refreshsiz ko'rsin (masalan Support -> CEO javob berdimi kuzatib
+        # turadi).
+        push_to_account(msg.sender_role, msg.sender_id, 'message_status_updated', data)
+        return Response({'success': True, 'data': data})

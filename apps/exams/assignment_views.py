@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Assignment
 from .serializers import AssignmentSerializer
 from apps.accounts.permissions import IsOrganizationMember
+from apps.notifications.realtime import push_to_account, push_to_class_group
 
 
 class AssignmentViewSet(viewsets.ModelViewSet):
@@ -34,6 +35,15 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         target_ids = self.request.data.get('target_students', [])
         if target_ids:
             assignment.target_students.set(target_ids)
+
+        # Real-time: guruh(lar) orqali tayinlangan Student'larga + alohida
+        # tanlangan (o'z guruhi bo'lmasligi ham mumkin) Student'larga
+        # darhol yetkaziladi.
+        data = AssignmentSerializer(assignment).data
+        for group_id in group_ids:
+            push_to_class_group(group_id, 'new_assignment', data)
+        for student_id in target_ids:
+            push_to_account('student', student_id, 'new_assignment', data)
 
     @action(detail=True, methods=['post'])
     def view(self, request, pk=None):

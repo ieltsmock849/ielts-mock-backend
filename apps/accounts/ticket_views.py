@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import SupportTicket
 from .serializers import SupportTicketSerializer
 from .permissions import IsSupport
+from apps.notifications.realtime import push_to_account
 
 class SupportTicketViewSet(viewsets.ModelViewSet):
     serializer_class = SupportTicketSerializer
@@ -53,4 +54,13 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
         ticket = self.get_object()
         ticket.seen = True
         ticket.save()
+
+        # Real-time: ticket'ni yuborgan CEO/Admin/Student "ko'rildi" belgisini
+        # refreshsiz ko'rsin.
+        data = SupportTicketSerializer(ticket).data
+        if ticket.user_id:
+            push_to_account(ticket.user_role, ticket.user_id, 'ticket_seen', data)
+        elif ticket.organization_id:
+            push_to_account('ceo', ticket.organization_id, 'ticket_seen', data)
+
         return Response({'success': True, 'message': 'Ticket marked as seen'})

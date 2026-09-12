@@ -161,14 +161,30 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=['http://localhost:5173', 'http://localhost:3000'])
+CORS_ALLOWED_ORIGINS = env.list(
+    'CORS_ALLOWED_ORIGINS',
+    default=[
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'https://abdurashid-ielts.uz',
+        'https://www.abdurashid-ielts.uz',
+    ]
+)
 CORS_ALLOW_CREDENTIALS = True
 
 # Django 4.x CSRF himoyasi uchun HTTPS orqali keladigan originlarni ishonchli deb belgilash kerak
 # (masalan admin panelga login qilishda). Odatda CORS bilan bir xil manzillar bo'ladi.
-CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+CSRF_TRUSTED_ORIGINS = env.list(
+    'CSRF_TRUSTED_ORIGINS',
+    default=[
+        'https://abdurashid-ielts.uz',
+        'https://www.abdurashid-ielts.uz',
+    ]
+)
 if RAILWAY_PUBLIC_DOMAIN:
-    CSRF_TRUSTED_ORIGINS.append(f'https://{RAILWAY_PUBLIC_DOMAIN}')
+    railway_origin = f'https://{RAILWAY_PUBLIC_DOMAIN}'
+    if railway_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(railway_origin)
 
 # Production'da xavfsizlik sozlamalari (Railway HTTPS orqali proxy qiladi)
 if not DEBUG:

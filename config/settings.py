@@ -223,8 +223,19 @@ SIMPLE_JWT = {
 }
 
 # File upload settings
+# MUHIM: avatar/savol rasmi/audio kabi fayllar base64 "data:" URL sifatida
+# oddiy JSON body ichida yuboriladi (multipart emas) — bunday so'rovlar
+# hajmi Django'da DATA_UPLOAD_MAX_MEMORY_SIZE bilan cheklanadi (standart —
+# atigi 2.5MB), FILE_UPLOAD_MAX_MEMORY_SIZE esa faqat multipart/form-data
+# fayllariga tegishli va bu yerga ta'sir qilmaydi. Shu sabab
+# DATA_UPLOAD_MAX_MEMORY_SIZE ham aniq belgilanmagan bo'lsa, standart
+# odatiy telefon kamerasi rasmidan (~2-6MB, base64'da +33%) kichikroq
+# bo'lib qoladi va so'rov "RequestDataTooBig" bilan muvaffaqiyatsiz
+# tugaydi — natijada profil/savol rasmi backend'ga UMUMAN saqlanmaydi
+# (frontend'da esa rasm shu sababli hech qachon ko'rinmaydi).
 MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_SIZE
+DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_SIZE
 
 # Telegram settings
 TELEGRAM_BOT_TOKEN = env('TELEGRAM_BOT_TOKEN', default='')

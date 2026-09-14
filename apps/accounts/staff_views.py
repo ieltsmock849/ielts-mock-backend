@@ -24,7 +24,16 @@ class IsCeoOrSupport(BasePermission):
     def has_permission(self, request, view):
         if request.user and request.user.role in ('ceo', 'support'):
             return True
-        if request.user and request.user.role == 'admin' and view.action in ('update', 'partial_update'):
+        # Admin uchun: PATCH/PUT bilan bir qatorda 'list'/'retrieve' ham
+        # zarur — chunki frontend "Profil" sahifasida avval ro'yxatdan
+        # o'z yozuvini topadi (staffApi.list() -> find), keyin shuni
+        # yangilaydi. Bular bo'lmasa GET /api/staff/ Admin uchun 403
+        # qaytarib, natijada frontend'da "existing" topilmay, self-edit
+        # ham "ruxsat yo'q" bilan rad etilib qolar edi. get_queryset()
+        # baribir faqat O'Z tashkilotidagi admin'larni qaytaradi, va
+        # has_object_permission pastda faqat AYNAN o'z yozuvini tahrirlash/
+        # o'chirishga ruxsat beradi — xavfsizlik shu bilan saqlanadi.
+        if request.user and request.user.role == 'admin' and view.action in ('update', 'partial_update', 'list', 'retrieve'):
             return True
         return False
 

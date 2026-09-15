@@ -1,5 +1,6 @@
 import os
 import logging
+import threading
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -27,8 +28,11 @@ def split_for_telegram(text, limit=3500):
     return parts
 
 
-def send_telegram_message(chat_id, text):
-    """Send a message via Telegram Bot API"""
+def _send_telegram_message_sync(chat_id, text):
+    """Haqiqiy (bloklovchi) Telegram API chaqiruvi — endi faqat fon
+    thread'ida ishga tushiriladi (pastga q.: send_telegram_message),
+    shuning uchun Telegram tarmog'i sekinlashsa ham asosiy so'rov
+    thread'i band bo'lib qolmaydi."""
     token = settings.TELEGRAM_BOT_TOKEN
     if not token or not chat_id:
         return
@@ -47,6 +51,22 @@ def send_telegram_message(chat_id, text):
                 logger.error(f"Telegram send error: {response.text}")
     except Exception as e:
         logger.error(f"Telegram send failed: {e}")
+
+
+def send_telegram_message(chat_id, text):
+    """Telegram xabarini FON THREAD'IDA yuboradi — bu funksiya HTTP
+    so'rov/signal ichida chaqirilgani uchun (masalan Writing topshirilganda
+    yoki Support ticket yaratilganda), agar shu yerda to'g'ridan-to'g'ri
+    (sinxron) requests.post chaqirilsa va Telegram tarmog'i sekin/ishlamay
+    qolsa — butun worker bir necha soniyaga band bo'lib qolar, natijada
+    O'SHA PAYTDA kelgan boshqa (aloqasiz) so'rovlar ham 502/timeout bilan
+    tugar edi. Fon thread'i buni butunlay oldini oladi — asosiy so'rov
+    darhol davom etadi, Telegram yuborilishi orqa fonda tugaydi."""
+    threading.Thread(
+        target=_send_telegram_message_sync,
+        args=(chat_id, text),
+        daemon=True,
+    ).start()
 
 
 def send_writing_notification(org, student, exam, result):

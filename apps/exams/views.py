@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.utils import timezone
 from .models import Group, Exam, Assignment, ExamAttempt
 from .serializers import GroupSerializer, ExamSerializer, AssignmentSerializer, ExamAttemptSerializer
@@ -19,10 +19,17 @@ class GroupViewSet(viewsets.ModelViewSet):
     search_fields = ['name']
 
     def get_queryset(self):
+        # PERFORMANCE: student_count endi bitta annotate() bilan (SQL COUNT)
+        # hisoblanadi — avval GroupSerializer har bir guruh uchun alohida
+        # `User.objects.filter(group=obj, role='student').count()` so'rovi
+        # yuborardi (N+1: 20 ta guruh = 20 ta qo'shimcha query).
+        base = Group.objects.annotate(
+            student_count=Count('user', filter=Q(user__role='student'))
+        )
         if self.request.user.role == 'support':
-            return Group.objects.all()
+            return base
         if self.request.user.role in ['ceo', 'admin']:
-            return Group.objects.filter(organization_id=self.request.user.organization_id)
+            return base.filter(organization_id=self.request.user.organization_id)
         return Group.objects.none()
 
     def perform_create(self, serializer):
@@ -36,12 +43,16 @@ class ExamViewSet(viewsets.ModelViewSet):
     filterset_fields = ['status', 'exam_type']
 
     def get_queryset(self):
+        # PERFORMANCE: assigned_groups/notif_seen_by (M2M) prefetch qilinadi —
+        # ExamSerializer bularni har bir exam uchun alohida so'ramasdan
+        # (N+1) shu prefetch keshidan o'qiydi (izoh: serializers.py).
+        base = Exam.objects.prefetch_related('assigned_groups', 'notif_seen_by')
         if self.request.user.role == 'support':
-            return Exam.objects.all()
+            return base
         if self.request.user.role in ['ceo', 'admin']:
-            return Exam.objects.filter(organization_id=self.request.user.organization_id)
+            return base.filter(organization_id=self.request.user.organization_id)
         if self.request.user.role == 'student':
-            return Exam.objects.filter(
+            return base.filter(
                 status='on',
                 assigned_groups__in=[self.request.user.group_id],
                 organization_id=self.request.user.organization_id

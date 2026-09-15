@@ -27,7 +27,10 @@ class Exam(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
     title = models.CharField(max_length=200)
     exam_type = models.CharField(max_length=20, choices=EXAM_TYPES, default='academic')
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='on')
+    # PERFORMANCE: status='on' har bir Student dashboard/login so'rovida
+    # filtrlanadi (ExamViewSet.get_queryset) — index qo'shildi (migratsiya:
+    # 0002_add_performance_indexes).
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='on', db_index=True)
     assigned_groups = models.ManyToManyField(Group)
     sections_data = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)

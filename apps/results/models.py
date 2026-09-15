@@ -17,7 +17,10 @@ class ExamResult(models.Model):
     review_data = models.JSONField(default=dict)
     stats = models.JSONField(default=dict)
 
-    writing_status = models.CharField(max_length=20, default='pending_review')
+    # PERFORMANCE: 'pending_review' holatidagi yozuvlarni topish (CEO/Admin
+    # "tekshirilmagan Writing"lar ro'yxati/dashboard) tez-tez filtrlanadi —
+    # index qo'shildi (migratsiya: 0002_add_performance_indexes).
+    writing_status = models.CharField(max_length=20, default='pending_review', db_index=True)
     writing_band = models.FloatField(null=True, blank=True)
     task1_band = models.FloatField(null=True, blank=True)
     task2_band = models.FloatField(null=True, blank=True)

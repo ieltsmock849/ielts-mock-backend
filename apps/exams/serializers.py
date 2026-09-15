@@ -16,6 +16,15 @@ class GroupSerializer(serializers.ModelSerializer):
         }
 
     def get_student_count(self, obj):
+        # PERFORMANCE: GroupViewSet.get_queryset() endi student_count'ni
+        # .annotate() bilan bitta query'da hisoblab beradi — shu bo'lsa
+        # o'shani ishlatamiz (guruhlar ro'yxatida har bir guruh uchun
+        # alohida COUNT query'siga yo'l qo'ymaslik uchun). Annotatsiya
+        # mavjud bo'lmagan holatlarda (masalan create()/update() natijasini
+        # to'g'ridan-to'g'ri serializatsiya qilishda) eski usulga qaytamiz —
+        # natija bir xil, faqat samaradorlik farq qiladi.
+        if hasattr(obj, 'student_count'):
+            return obj.student_count
         return User.objects.filter(group=obj, role='student').count()
 
     def create(self, validated_data):
@@ -40,7 +49,13 @@ class ExamSerializer(serializers.ModelSerializer):
         }
 
     def get_assigned_group_ids(self, obj):
-        return list(obj.assigned_groups.values_list('id', flat=True))
+        # PERFORMANCE: .values_list() manager'da to'g'ridan-to'g'ri chaqirilsa
+        # HAR DOIM yangi query yuboradi — hatto ExamViewSet.get_queryset()
+        # .prefetch_related('assigned_groups') qilgan bo'lsa ham (chunki
+        # .values_list() prefetch keshini emas, yangi QuerySet yaratadi).
+        # .all() esa prefetch keshini hurmat qiladi — natija bir xil, lekin
+        # exam ro'yxatida N+1 query o'rniga bitta (prefetch) query bo'ladi.
+        return [g.id for g in obj.assigned_groups.all()]
 
     def get_enabled_sections(self, obj):
         sections = obj.sections_data or {}
@@ -70,13 +85,16 @@ class AssignmentSerializer(serializers.ModelSerializer):
         }
 
     def get_group_ids(self, obj):
-        return list(obj.groups.values_list('id', flat=True))
+        # PERFORMANCE: .all() ishlatiladi (.values_list() emas) — shunda
+        # AssignmentViewSet.get_queryset()dagi prefetch_related('groups')
+        # keshi hurmat qilinadi va ro'yxatda N+1 query bo'lmaydi.
+        return [g.id for g in obj.groups.all()]
 
     def get_target_student_ids(self, obj):
-        return list(obj.target_students.values_list('id', flat=True))
+        return [s.id for s in obj.target_students.all()]
 
     def get_viewed_by_ids(self, obj):
-        return list(obj.viewed_by.values_list('id', flat=True))
+        return [u.id for u in obj.viewed_by.all()]
 
     def create(self, validated_data):
         validated_data.setdefault('id', f"asg_{uuid.uuid4().hex[:12]}")

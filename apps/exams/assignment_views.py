@@ -14,12 +14,18 @@ class AssignmentViewSet(viewsets.ModelViewSet):
     search_fields = ['title']
 
     def get_queryset(self):
+        # PERFORMANCE: groups/target_students/viewed_by (M2M) prefetch
+        # qilinadi — AssignmentSerializer'dagi *_ids metodlari va standart
+        # PK-relation maydonlari (groups/target_students/viewed_by) shu
+        # keshdan o'qiydi, har bir assignment uchun alohida so'rov (N+1)
+        # o'rniga (izoh: serializers.py).
+        base = Assignment.objects.prefetch_related('groups', 'target_students', 'viewed_by')
         if self.request.user.role == 'support':
-            return Assignment.objects.all()
+            return base
         if self.request.user.role in ['ceo', 'admin']:
-            return Assignment.objects.filter(organization_id=self.request.user.organization_id)
+            return base.filter(organization_id=self.request.user.organization_id)
         if self.request.user.role == 'student':
-            return Assignment.objects.filter(
+            return base.filter(
                 groups__in=[self.request.user.group_id],
                 organization_id=self.request.user.organization_id
             )

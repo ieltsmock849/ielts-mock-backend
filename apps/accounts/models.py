@@ -64,7 +64,11 @@ class User(models.Model):
     password = models.CharField(max_length=128)
     plain_password = models.CharField(max_length=128, blank=True, default='')
     phone = models.CharField(max_length=20, blank=True)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    # PERFORMANCE: 'role' deyarli har bir so'rovda filtrlanadi (masalan
+    # role='student', role__in=STAFF_ROLES) — FK'lardan farqli o'laroq bu
+    # maydon avtomatik indekslanmagan edi, shu sabab index qo'shildi
+    # (migratsiya: 0007_add_performance_indexes).
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, db_index=True)
     telegram_chat_id = models.CharField(max_length=50, blank=True)
     avatar = models.TextField(blank=True)
     status = models.CharField(max_length=20, default='active')

@@ -14,9 +14,11 @@ class UserViewSet(viewsets.ModelViewSet):
     filterset_fields = ['role', 'status', 'group']
 
     def get_queryset(self):
+        # PERFORMANCE: select_related('group') — izoh: student_views.py.
+        base = User.objects.select_related('group')
         if self.request.user.role == 'support':
-            return User.objects.all()
-        return User.objects.filter(organization_id=self.request.user.organization_id)
+            return base
+        return base.filter(organization_id=self.request.user.organization_id)
 
     def perform_create(self, serializer):
         serializer.save(organization_id=self.request.user.organization_id)

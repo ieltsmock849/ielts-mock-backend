@@ -62,9 +62,11 @@ class StaffViewSet(viewsets.ModelViewSet):
         # shu sabab Support hisoblari bu ro'yxatda (demak update/destroy orqali
         # ham) HECH QACHON ko'rinmaydi, hatto boshqa Support foydalanuvchisi
         # so'rasa ham ("Support accountini hech kim o'zgartira/o'chira olmasin").
+        # PERFORMANCE: select_related('group') — izoh: student_views.py.
+        base = User.objects.select_related('group')
         if self.request.user.role == 'support':
-            return User.objects.filter(role__in=STAFF_ROLES)
-        return User.objects.filter(
+            return base.filter(role__in=STAFF_ROLES)
+        return base.filter(
             role__in=STAFF_ROLES,
             organization_id=self.request.user.organization_id
         )

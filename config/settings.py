@@ -15,7 +15,15 @@ env.read_env(os.path.join(BASE_DIR, '.env'))
 SECRET_KEY = env('DJANGO_SECRET_KEY', default='django-insecure-your-secret-key-here')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env.bool('DJANGO_DEBUG', default=True)
+# MUHIM (PERFORMANCE): DEBUG=True bo'lsa Django HAR BIR so'rovda bajarilgan
+# barcha SQL query'larni (connection.queries) jarayon xotirasida CHEKSIZ
+# to'plab boradi — bu productionda vaqt o'tishi bilan doimiy o'sib boruvchi
+# xotira sarfi (memory leak) va sekinlashuvga olib keladi, xuddi Railway'da
+# kuzatilgan "RAM ko'p ishlatilmoqda va sayt sekinlashdi" muammosiga mos
+# keladi. Standart qiymat endi False (xavfsiz production default) — agar
+# Railway'da DJANGO_DEBUG env var ANIQ o'rnatilmagan bo'lsa, ilova avval
+# (default=True bilan) bilmasdan DEBUG rejimida ishlagan bo'lishi mumkin edi.
+DEBUG = env.bool('DJANGO_DEBUG', default=False)
 
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 
@@ -57,6 +65,12 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
+    # PERFORMANCE: API javoblarini (katta sections_data/review_data JSON,
+    # avatar base64 va h.k.) tarmoqqa yuborishdan oldin gzip bilan siqadi —
+    # ma'lumotning o'zi o'zgarmaydi, faqat tarmoq orqali uzatiladigan hajm
+    # kamayadi (odatda JSON uchun 70-90%). Business-logika/API javobiga
+    # HECH QANDAY ta'sir qilmaydi.
+    'django.middleware.gzip.GZipMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

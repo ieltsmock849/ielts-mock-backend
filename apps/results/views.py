@@ -16,12 +16,18 @@ class ExamResultViewSet(viewsets.ModelViewSet):
     search_fields = ['exam_title']
 
     def get_queryset(self):
+        # PERFORMANCE: ExamResultSerializer.get_student_name/get_exam_title_display
+        # har bir natija uchun obj.student.name / obj.exam.title'ga murojaat
+        # qiladi — select_related bo'lmasa bu har bir yozuv uchun 2 tadan
+        # qo'shimcha query (N+1) degani (20 ta natija = 40 ta qo'shimcha
+        # so'rov). select_related bittagina JOIN bilan hal qiladi.
+        base = ExamResult.objects.select_related('student', 'exam')
         if self.request.user.role == 'support':
-            return ExamResult.objects.all()
+            return base
         if self.request.user.role in ['ceo', 'admin']:
-            return ExamResult.objects.filter(organization_id=self.request.user.organization_id)
+            return base.filter(organization_id=self.request.user.organization_id)
         if self.request.user.role == 'student':
-            return ExamResult.objects.filter(student=self.request.user)
+            return base.filter(student=self.request.user)
         return ExamResult.objects.none()
 
     def perform_create(self, serializer):

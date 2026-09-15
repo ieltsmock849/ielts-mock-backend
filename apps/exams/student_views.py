@@ -28,14 +28,18 @@ class StudentViewSet(viewsets.ModelViewSet):
     filterset_fields = ['group', 'status']
 
     def get_queryset(self):
+        # PERFORMANCE: select_related('group') — UserSerializer.get_group_name/
+        # get_group_id har bir student uchun obj.group'ga murojaat qiladi;
+        # bo'lmasa bu N+1 query (har bir o'quvchi uchun alohida guruh so'rovi).
+        base = User.objects.select_related('group')
         if self.request.user.role == 'support':
-            return User.objects.filter(role='student')
+            return base.filter(role='student')
         if self.request.user.role in ['ceo', 'admin']:
-            return User.objects.filter(
+            return base.filter(
                 role='student',
                 organization_id=self.request.user.organization_id
             )
-        return User.objects.filter(id=self.request.user.id)
+        return base.filter(id=self.request.user.id)
 
     def perform_create(self, serializer):
         # Generate username if not provided

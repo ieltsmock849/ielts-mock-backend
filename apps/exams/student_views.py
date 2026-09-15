@@ -21,11 +21,32 @@ class StudentSerializer(UserSerializer):
         extra_kwargs = {**UserSerializer.Meta.extra_kwargs, 'role': {'required': False}}
 
 
+class StudentListSerializer(StudentSerializer):
+    """
+    PERFORMANCE FIX: ro'yxat (list) chiqishida 'avatar' maydoni chiqarib
+    tashlanadi. 'avatar' — base64 rasm matni (models.py'da TextField),
+    ba'zi o'quvchilarda 200-300KB gacha yetadi. 20 nafar o'quvchi = butun
+    javob bir necha MB bo'lib ketardi (Railway loglarida ~4.8MB kuzatilgan),
+    va bu endpoint frontendda tez-tez (polling) chaqirilgani sababli server
+    xotirasiga doimiy bosim berib, qayta ishga tushishlarga (502 xatolarga)
+    sabab bo'lardi. Bitta o'quvchining profilini ochganda (retrieve) esa
+    avatar hali ham to'liq StudentSerializer orqali qaytariladi — quyidagi
+    get_serializer_class'ga qarang.
+    """
+    class Meta(StudentSerializer.Meta):
+        fields = [f for f in StudentSerializer.Meta.fields if f != 'avatar']
+
+
 class StudentViewSet(viewsets.ModelViewSet):
     serializer_class = StudentSerializer
     permission_classes = [IsAuthenticated, IsOrganizationMember]
     search_fields = ['name', 'username']
     filterset_fields = ['group', 'status']
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return StudentListSerializer
+        return StudentSerializer
 
     def get_queryset(self):
         # PERFORMANCE: select_related('group') — UserSerializer.get_group_name/

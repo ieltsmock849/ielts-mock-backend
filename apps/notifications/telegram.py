@@ -78,8 +78,15 @@ def send_writing_notification(org, student, exam, result):
     task1 = writing.get('task1', {})
     task2 = writing.get('task2', {})
 
-    wt = result.writing_text if isinstance(result.writing_text, dict) else {'task1': '',
-                                                                            'task2': result.writing_text or ''}
+    # TUZATILDI: ExamResult modelida 'writing_text' degan maydon UMUMAN yo'q
+    # (bu doim AttributeError berardi, signals.py'dagi try/except uni jim
+    # yutib yuborardi — shu sabab natija muvaffaqiyatli saqlansa ham
+    # Telegram xabari hech qachon yuborilmasdi). Haqiqiy writing matni
+    # frontend'dan review_data JSON ichida, 'writingText' kaliti ostida
+    # keladi (q. frontend index.html: resultToApi -> review_data.writingText).
+    wt = result.review_data.get('writingText', {}) if result.review_data else {}
+    if not isinstance(wt, dict):
+        wt = {'task1': '', 'task2': ''}
 
     count_words = lambda t: len(str(t).strip().split()) if t else 0
 

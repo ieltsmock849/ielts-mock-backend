@@ -203,7 +203,19 @@ if RAILWAY_PUBLIC_DOMAIN:
 # Production'da xavfsizlik sozlamalari (Railway HTTPS orqali proxy qiladi)
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=True)
+    # MUHIM (TUZATISH): bu qator avval default=True edi. DEBUG endi xavfsiz
+    # tarzda False bo'lgani sabab (yuqoridagi izohga q.) — bu butun blok endi
+    # ILGARI HECH QACHON ishlamagan holda birinchi marta ishga tushdi.
+    # SECURE_SSL_REDIRECT=True + Railway proxy'ning X-Forwarded-Proto
+    # header'ini har doim to'g'ri uzatishi TASDIQLANMAGAN holatda SecurityMiddleware
+    # ba'zi so'rovlarni (ayniqsa CORS preflight/OPTIONS va WebSocket upgrade)
+    # 301 redirect bilan javob berishga majbur qilishi mumkin — brauzer esa
+    # preflight/WS so'rovlarida redirect'ga ERGASHA OLMAYDI, natijada aynan
+    # "No 'Access-Control-Allow-Origin' header" va WebSocket ulanish xatolari
+    # ko'rinadi. Shu sabab bu ilgari isbotlangan xavfsiz holatga (False)
+    # qaytarildi — Railway'da header uzatilishi alohida tasdiqlangach,
+    # SECURE_SSL_REDIRECT env var orqali xohlasangiz True qilib yoqishingiz mumkin.
+    SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=False)
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
 

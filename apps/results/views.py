@@ -36,6 +36,14 @@ class ExamResultViewSet(viewsets.ModelViewSet):
             student=self.request.user if self.request.user.role == 'student' else None
         )
 
+    @action(detail=True, methods=['get'])
+    def speaking(self, request, pk=None):
+        # get_object() get_queryset() orqali ishlaydi: o'quvchi faqat o'zining,
+        # CEO/Admin faqat o'z tashkilotining natijasini ko'ra oladi.
+        result = self.get_object()
+        parts = (result.review_data or {}).get('speaking') or []
+        return Response({'success': True, 'data': parts})
+
     @action(detail=True, methods=['post'])
     def grade_writing(self, request, pk=None):
         result = self.get_object()

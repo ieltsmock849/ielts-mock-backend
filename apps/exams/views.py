@@ -12,6 +12,19 @@ from apps.notifications.realtime import push_to_class_group
 import uuid
 
 
+def student_already_took_exam(student, exam):
+    """
+    Bir mock = bir urinish qoidasi (BACKEND — yagona haqiqat manbai).
+    O'quvchi mockni topshirgan bo'lsa qayta ishlay olmaydi. CEO mockni
+    qayta ochsa (reopen -> exam.reopened_at), faqat shu vaqtdan KEYIN
+    topshirilgan natijalar hisoblanadi, ya'ni yana bir marta ruxsat bor.
+    """
+    qs = exam.results.filter(student=student)
+    if exam.reopened_at:
+        qs = qs.filter(submitted_at__gt=exam.reopened_at)
+    return qs.exists()
+
+
 class GroupViewSet(viewsets.ModelViewSet):
     serializer_class = GroupSerializer
     permission_classes = [IsAuthenticated, IsOrganizationMember]
@@ -115,6 +128,14 @@ class ExamViewSet(viewsets.ModelViewSet):
         ).first()
 
         if not attempt:
+            # Allaqachon topshirgan bo'lsa — yangi urinish BERILMAYDI.
+            # (Frontend shu matndagi "allaqachon topshirgansiz" so'ziga qarab
+            # o'quvchini chiqarib yuboradi.)
+            if student_already_took_exam(student, exam):
+                return Response(
+                    {'success': False,
+                     'message': 'Siz bu mock examni allaqachon topshirgansiz.'},
+                    status=status.HTTP_403_FORBIDDEN)
             attempt = ExamAttempt.objects.create(
                 id=f"att_{uuid.uuid4().hex[:8]}",
                 student=student,

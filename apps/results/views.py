@@ -1,12 +1,14 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 from .models import ExamResult
 from .serializers import ExamResultSerializer, GradeWritingSerializer
 from apps.accounts.permissions import IsOrganizationMember, IsTeacher
 from apps.exams.scoring import criteria_to_band, writing_overall_band
+from apps.exams.views import student_already_took_exam
 
 
 class ExamResultViewSet(viewsets.ModelViewSet):
@@ -31,6 +33,12 @@ class ExamResultViewSet(viewsets.ModelViewSet):
         return ExamResult.objects.none()
 
     def perform_create(self, serializer):
+        # Ikkinchi qavat himoya: to'g'ridan-to'g'ri POST bilan ham
+        # bir mockni ikkinchi marta topshirib bo'lmaydi.
+        if self.request.user.role == 'student':
+            exam = serializer.validated_data.get('exam')
+            if exam and student_already_took_exam(self.request.user, exam):
+                raise PermissionDenied('Siz bu mock examni allaqachon topshirgansiz.')
         serializer.save(
             organization_id=self.request.user.organization_id,
             student=self.request.user if self.request.user.role == 'student' else None

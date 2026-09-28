@@ -3,7 +3,7 @@ from django.dispatch import receiver
 from django.conf import settings
 from apps.results.models import ExamResult
 from apps.accounts.models import SupportTicket
-from .telegram import send_writing_notification, send_support_ticket_notification
+from .telegram import send_writing_notification, send_speaking_notification, send_support_ticket_notification
 from .realtime import push_to_support
 
 
@@ -25,6 +25,29 @@ def notify_writing_submission(sender, instance, created, **kwargs):
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f"Writing notification failed: {e}")
+
+
+@receiver(post_save, sender=ExamResult)
+def notify_speaking_submission(sender, instance, created, **kwargs):
+    """Speaking yozuvlari bor natija yaratilganda — audiolarni CEO'ga Telegram orqali yuborish"""
+    if not created:
+        return
+    review = instance.review_data if isinstance(instance.review_data, dict) else {}
+    if not review.get('speaking'):
+        return
+
+    try:
+        student = instance.student
+        exam = instance.exam
+        org = student.organization
+
+        if org and org.telegram_chat_id:
+            send_speaking_notification(org, student, exam, instance)
+    except Exception as e:
+        # Don't fail the request if notification fails
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Speaking notification failed: {e}")
 
 
 @receiver(post_save, sender=SupportTicket)
